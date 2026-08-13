@@ -31,23 +31,24 @@ def _execute_select(statement, store):
     if statement.where is None:
         return rows
 
-    condition = statement.where
+    return [(key, value) for key, value in rows if _row_matches_where(key, value, statement.where)]
+
+
+def _row_matches_where(key, value, where_groups):
+    """where_groups is a list of AND-groups, OR'd together: a row
+    matches if it satisfies every condition in at least one group."""
+    return any(
+        all(_condition_matches(key, value, condition) for condition in group)
+        for group in where_groups
+    )
+
+
+def _condition_matches(key, value, condition):
+    row_value = key if condition.column == "key" else value
     compare = COMPARISONS[condition.operator]
-
-    matching_rows = []
-    for key, value in rows:
-        row_value = key if condition.column == "key" else value
-        if _row_matches(compare, row_value, condition.value):
-            matching_rows.append((key, value))
-
-    return matching_rows
-
-
-def _row_matches(compare, row_value, condition_value):
-    """Run the comparison, treating mismatched types (e.g. comparing a
-    string value with '<' against a number) as a non-match instead of
-    letting it crash the query."""
     try:
-        return compare(row_value, condition_value)
+        return compare(row_value, condition.value)
     except TypeError:
+        # e.g. comparing a string value with '<' against a number -
+        # treat as a non-match instead of crashing the query.
         return False

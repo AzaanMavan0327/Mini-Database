@@ -78,6 +78,32 @@ class TestSQLExecutor(unittest.TestCase):
         rows = self.run_sql("SELECT * FROM t")
         self.assertEqual(rows, [(1, "second")])
 
+    def test_select_with_and_requires_both_conditions(self):
+        self.run_sql("INSERT INTO t VALUES (1, 'Alice')")
+        self.run_sql("INSERT INTO t VALUES (2, 'Alice')")
+        rows = self.run_sql("SELECT * FROM t WHERE key = 1 AND value = 'Alice'")
+        self.assertEqual(rows, [(1, "Alice")])
+
+    def test_select_with_and_excludes_partial_match(self):
+        self.run_sql("INSERT INTO t VALUES (1, 'Alice')")
+        rows = self.run_sql("SELECT * FROM t WHERE key = 1 AND value = 'Bob'")
+        self.assertEqual(rows, [])
+
+    def test_select_with_or_matches_either_condition(self):
+        self.run_sql("INSERT INTO t VALUES (1, 'a')")
+        self.run_sql("INSERT INTO t VALUES (2, 'b')")
+        self.run_sql("INSERT INTO t VALUES (3, 'c')")
+        rows = self.run_sql("SELECT * FROM t WHERE key = 1 OR key = 3")
+        self.assertEqual(rows, [(1, "a"), (3, "c")])
+
+    def test_and_binds_tighter_than_or_in_execution(self):
+        # (key = 1 AND value = 'a') OR key = 3
+        self.run_sql("INSERT INTO t VALUES (1, 'a')")
+        self.run_sql("INSERT INTO t VALUES (2, 'a')")
+        self.run_sql("INSERT INTO t VALUES (3, 'x')")
+        rows = self.run_sql("SELECT * FROM t WHERE key = 1 AND value = 'a' OR key = 3")
+        self.assertEqual(rows, [(1, "a"), (3, "x")])
+
     def test_data_inserted_via_sql_persists_after_reopen(self):
         self.run_sql("INSERT INTO t VALUES (1, 'Alice')")
         self.store.close()
@@ -87,6 +113,27 @@ class TestSQLExecutor(unittest.TestCase):
         rows = execute_statement(statement, reopened_store)
         self.assertEqual(rows, [(1, "Alice")])
         reopened_store.close()
+
+    def test_full_workflow_survives_multiple_restarts(self):
+        # Insert out of order, restart, insert more, restart again, and
+        # confirm SELECT still returns everything in sorted order.
+        for key in [5, 1, 3]:
+            self.run_sql(f"INSERT INTO t VALUES ({key}, 'v{key}')")
+        self.store.close()
+
+        store_after_first_restart = DiskStore(self.db_path)
+        for key in [2, 4]:
+            statement = parse_sql(f"INSERT INTO t VALUES ({key}, 'v{key}')")
+            execute_statement(statement, store_after_first_restart)
+        store_after_first_restart.close()
+
+        store_after_second_restart = DiskStore(self.db_path)
+        rows = execute_statement(parse_sql("SELECT * FROM t"), store_after_second_restart)
+        self.assertEqual(rows, [(1, "v1"), (2, "v2"), (3, "v3"), (4, "v4"), (5, "v5")])
+
+        # Reassign so tearDown closes this store instead of the
+        # already-closed one from setUp.
+        self.store = store_after_second_restart
 
 
 if __name__ == "__main__":

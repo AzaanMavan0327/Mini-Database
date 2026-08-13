@@ -12,8 +12,13 @@ class Parser:
     """A recursive-descent parser for a small subset of SQL.
 
     Supports:
-        SELECT * FROM <table> [WHERE <key|value> <op> <literal>]
+        SELECT * FROM <table> [WHERE <condition> [(AND|OR) <condition>]...]
         INSERT INTO <table> VALUES (<key>, '<value>')
+
+    AND binds tighter than OR, same as real SQL, so
+    'key = 1 AND value = "a" OR key = 2' means
+    '(key = 1 AND value = "a") OR key = 2'. Parentheses for explicit
+    grouping aren't supported.
 
     The table name is required by the grammar but not enforced, since
     the storage layer currently only supports a single implicit table.
@@ -50,8 +55,25 @@ class Parser:
         return SelectStatement(table_name=table_name, where=where)
 
     def _parse_where(self):
+        """Parse a WHERE clause into OR-of-AND-groups, so AND binds
+        tighter than OR: 'a AND b OR c' becomes [[a, b], [c]]."""
         self._expect_keyword("WHERE")
 
+        groups = [self._parse_and_group()]
+        while self._current().type == TokenType.KEYWORD and self._current().value == "OR":
+            self._advance()
+            groups.append(self._parse_and_group())
+
+        return groups
+
+    def _parse_and_group(self):
+        conditions = [self._parse_condition()]
+        while self._current().type == TokenType.KEYWORD and self._current().value == "AND":
+            self._advance()
+            conditions.append(self._parse_condition())
+        return conditions
+
+    def _parse_condition(self):
         column_token = self._expect_type(TokenType.IDENTIFIER, "column name")
         column = column_token.value.lower()
         if column not in VALID_COLUMNS:

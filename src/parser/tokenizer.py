@@ -1,6 +1,6 @@
 import re
 
-KEYWORDS = {"SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES"}
+KEYWORDS = {"SELECT", "FROM", "WHERE", "INSERT", "INTO", "VALUES", "AND", "OR"}
 
 
 class TokenType:

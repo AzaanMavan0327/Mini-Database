@@ -1,4 +1,5 @@
 import os
+import random
 import tempfile
 import unittest
 
@@ -74,6 +75,24 @@ class TestDiskStore(unittest.TestCase):
         self.store.insert(1, "a")
         self.store.insert(3, "c")
         self.assertEqual(self.store.keys(), [1, 2, 3])
+
+    def test_handles_a_larger_number_of_rows_correctly(self):
+        # Catches bugs that only show up once the B-tree index has
+        # split and merged several times, not just with a handful of rows.
+        keys_in_insert_order = list(range(200))
+        random.shuffle(keys_in_insert_order)
+
+        for key in keys_in_insert_order:
+            self.store.insert(key, f"value-{key}")
+
+        keys_to_delete = keys_in_insert_order[:50]
+        for key in keys_to_delete:
+            self.store.delete(key)
+
+        expected_keys = sorted(set(range(200)) - set(keys_to_delete))
+        self.assertEqual(self.store.keys(), expected_keys)
+        for key in expected_keys:
+            self.assertEqual(self.store.get(key), f"value-{key}")
 
 
 if __name__ == "__main__":

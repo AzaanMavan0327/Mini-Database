@@ -62,6 +62,16 @@ class TestTokenizer(unittest.TestCase):
         with self.assertRaises(ValueError):
             tokenize("SELECT * FROM users WHERE key = #5")
 
+    def test_tokenizes_and_or_as_keywords(self):
+        tokens = tokenize("key = 1 AND value = 'a' OR key = 2")
+        keywords = [t.value for t in tokens if t.type == TokenType.KEYWORD]
+        self.assertEqual(keywords, ["AND", "OR"])
+
+    def test_and_or_are_case_insensitive(self):
+        tokens = tokenize("key = 1 and key = 2 or key = 3")
+        keywords = [t.value for t in tokens if t.type == TokenType.KEYWORD]
+        self.assertEqual(keywords, ["AND", "OR"])
+
 
 if __name__ == "__main__":
     unittest.main()

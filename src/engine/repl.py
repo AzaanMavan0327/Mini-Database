@@ -121,7 +121,7 @@ def run_repl(db_file=DEFAULT_DB_FILE):
     print("MiniDB REPL - type 'exit' to quit")
     print(f"Using database file: {db_file}")
     print("Commands: insert <key> <value>, get <key>, delete <key>, keys")
-    print("SQL: SELECT * FROM <table> [WHERE key|value <op> <literal>]")
+    print("SQL: SELECT * FROM <table> [WHERE cond [AND|OR cond]...]")
     print("     INSERT INTO <table> VALUES (<key>, '<value>')")
 
     while True:
