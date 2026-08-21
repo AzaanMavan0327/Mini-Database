@@ -149,4 +149,4 @@ minidb/
 - [x] Week 2: Persist data to disk using fixed-size pages
 - [x] Week 3: B-tree index for fast, sorted lookups
 - [x] Week 4: Small SQL parser (`SELECT`, `INSERT`, `WHERE`)
-- [ ] Week 5-6: Tests, docs, polish
+- [x] Week 5-6: Tests, docs, polish
